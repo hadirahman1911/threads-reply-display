@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Threads Reply Reviewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --bg-page: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: "Plus Jakarta Sans", sans-serif; background: var(--bg-page); padding: 32px 16px; margin: 0; color: var(--text-main); }
+    .container { max-width: 860px; margin: auto; }
+    
+    /* Login Modal Overlay */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .login-box {
+      background: #ffffff;
+      padding: 32px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    .login-box h3 { margin: 0 0 8px 0; font-size: 20px; font-weight: 700; color: var(--text-main); }
+    .login-box p { margin: 0 0 20px 0; font-size: 13px; color: var(--text-muted); }
+
+    .top-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    h2 { margin: 0 0 6px 0; font-size: 24px; font-weight: 700; }
+    p.sub { margin: 0; color: var(--text-muted); font-size: 14px; }
+    .logged-user-badge { background: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+
+    .config-panel {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+    .field-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    select, input[type="password"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      background-color: #fff;
+      color: var(--text-main);
+      outline: none;
+    }
+    select:focus, input[type="password"]:focus { border-color: var(--primary); }
+
+    .cooldown-alert {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+      padding: 10px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .card { background: var(--card-bg); padding: 22px; border-radius: 14px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid var(--border-color); }
+    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .user-info { display: flex; align-items: center; gap: 8px; }
+    .user { font-weight: 700; color: var(--primary); font-size: 15px; }
+    .comment-time { font-size: 12px; color: var(--text-muted); background: #f1f5f9; padding: 2px 8px; border-radius: 4px; }
+    .links-group { display: flex; gap: 8px; align-items: center; }
+    .btn-url { font-size: 12px; color: var(--primary); text-decoration: none; padding: 5px 10px; background: #e0f2fe; border-radius: 6px; font-weight: 600; }
+    .btn-url:hover { background: #bae6fd; }
+
+    .context-box { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 14px; border-radius: 6px; font-size: 13px; color: #92400e; margin-bottom: 14px; line-height: 1.45; }
+    .context-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px dashed #fde68a; }
+    .context-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #b45309; }
+    .post-date-badge { font-size: 12px; background: #fef3c7; color: #b45309; padding: 3px 8px; border-radius: 6px; font-weight: 700; border: 1px solid #fde68a; }
+
+    .comment-box { background: #f8fafc; padding: 12px 14px; border-radius: 8px; font-size: 14px; color: #334155; margin-bottom: 14px; border-left: 4px solid var(--primary); font-weight: 500; }
+    
+    .label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; color: var(--text-muted); }
+    textarea { width: 100%; height: 85px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; line-height: 1.45; font-family: inherit; resize: vertical; margin-bottom: 12px; }
+    textarea:focus { outline: none; border-color: var(--primary); }
+
+    .actions { display: flex; justify-content: space-between; align-items: center; }
+    .status-msg { font-size: 13px; font-weight: 500; }
+    .btn-send, .btn-primary { background: #000000; color: #ffffff; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; }
+    .btn-send:hover, .btn-primary:hover { background: #27272a; }
+    .btn-send:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <!-- MODAL LOGIN STAF -->
+  <div id="loginModal" class="modal-overlay">
+    <div class="login-box">
+      <h3>Log Masuk Pegawai</h3>
+      <p>Sila pilih profil nama staf dan masukkan kata laluan untuk mula membalas prospek.</p>
+      
+      <div class="field-group" style="margin-bottom: 14px;">
+        <label for="loginStaffSelect">Pilih Nama Staf</label>
+        <select id="loginStaffSelect">
+          <option value="">Memuatkan senarai staf...</option>
+        </select>
+      </div>
+
+      <div class="field-group" style="margin-bottom: 20px;">
+        <label for="loginPassword">Kata Laluan</label>
+        <input type="password" id="loginPassword" placeholder="Masukkan kata laluan...">
+      </div>
+
+      <div id="loginError" style="color: #dc2626; font-size: 13px; margin-bottom: 14px; display: none;"></div>
+
+      <button id="btnLogin" class="btn-primary" style="width: 100%;">Masuk Papan Pemuka</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD UTAMA -->
+  <div class="container" id="dashboardContent" style="display: none;">
+    <div class="top-header">
+      <div>
+        <h2>Pengurusan Balasan Threads</h2>
+        <p class="sub">Balas prospek secara manual & pantau sela masa penghantaran demi keselamatan akaun.</p>
+      </div>
+      <div>
+        <span class="logged-user-badge">👤 <span id="currentStaffName">-</span></span>
+      </div>
+    </div>
+
+    <div class="config-panel">
+      <div class="field-group">
+        <label for="selectPretext">Pretext WhatsApp</label>
+        <select id="selectPretext" onchange="refreshAllDrafts()">
+          <option value="">Memuatkan teks pretext...</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label for="selectTemplate">Template Balasan Komen</label>
+        <select id="selectTemplate" onchange="refreshAllDrafts()">
+          <option value="">Memuatkan senarai template...</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="cooldownBanner" class="cooldown-alert">
+      ⏱️ Sela masa keselamatan aktif: Sila tunggu <span id="cooldownTimer">30</span> saat sebelum balasan seterusnya boleh dihantar...
+    </div>
+
+    <div id="list">Memuatkan rekod komen dari pangkalan data...</div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    const SUPABASE_URL = "https://rfbnlxbitigxnntwmbvp.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmYm5seGJpdGlneG5udHdtYnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjMzNTQsImV4cCI6MjA5MDE5OTM1NH0.77YWZEs7cqxg51aR1wcq83a3ckPVZe05bo2AU9AK3EY";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentLoggedInStaff = null;
+    let rawPosts = [];
+    let postsDateMap = {};
+    let templateList = [];
+    let isCooldownActive = false;
+    const SAFE_COOLDOWN_SECONDS = 30;
+
+    // Muat turun senarai staf (tanpa password)
+    async function initLogin() {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/staff-auth`, {
+          method: "GET"
+        });
+        const staffList = await res.json();
+        const sel = document.getElementById("loginStaffSelect");
+        sel.innerHTML = '<option value="">-- Pilih Nama Anda --</option>';
+
+        if (Array.isArray(staffList)) {
+          staffList.forEach(s => {
+            sel.innerHTML += `<option value="${s.id}" data-name="${s.staff_name}" data-phone="${s.phone_number}">${s.staff_name}</option>`;
+          });
+        }
+      } catch (err) {
+        console.error("Gagal muat senarai staf:", err);
+      }
+    }
+
+    document.getElementById("btnLogin").onclick = async () => {
+      const staffId = document.getElementById("loginStaffSelect").value;
+      const password = document.getElementById("loginPassword").value;
+      const errBox = document.getElementById("loginError");
+
+      if (!staffId || !password) {
+        errBox.innerText = "Sila pilih nama dan masukkan kata laluan.";
+        errBox.style.display = "block";
+        return;
+      }
+
+      errBox.style.display = "none";
+      document.getElementById("btnLogin").innerText = "Mengesahkan...";
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/staff-auth`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ staff_id: staffId, password: password })
+        });
+
+        const data = await res.json();
+
+        if (data.success && data.staff) {
+          currentLoggedInStaff = data.staff;
+          document.getElementById("loginModal").style.display = "none";
+          document.getElementById("dashboardContent").style.display = "block";
+          document.getElementById("currentStaffName").innerText = `${currentLoggedInStaff.staff_name} (${currentLoggedInStaff.phone_number})`;
+
+          // Mulakan dashboard
+          await startDashboard();
+        } else {
+          errBox.innerText = data.error || "Kata laluan salah!";
+          errBox.style.display = "block";
+          document.getElementById("btnLogin").innerText = "Masuk Papan Pemuka";
+        }
+      } catch (err) {
+        errBox.innerText = "Ralat sambungan: " + err.message;
+        errBox.style.display = "block";
+        document.getElementById("btnLogin").innerText = "Masuk Papan Pemuka";
+      }
+    };
+
+    async function startDashboard() {
+      await Promise.all([
+        fetchPretextOptions(),
+        fetchTemplateOptions()
+      ]);
+      await loadComments();
+    }
+
+    async function fetchPretextOptions() {
+      const { data, error } = await supabase.from("whatsapp_pretexts").select("*");
+      const el = document.getElementById("selectPretext");
+      if (!error && data && data.length > 0) {
+        el.innerHTML = "";
+        data.forEach(p => {
+          const textVal = p.pretext || p.pretext_text || p.text || "";
+          const title = p.title || textVal || "Teks Pretext";
+          el.innerHTML += `<option value="${encodeURIComponent(textVal)}">${title}</option>`;
+        });
+      } else {
+        el.innerHTML = `<option value="${encodeURIComponent('TRP1710-NakBelajarMandarin')}">TRP1710-NakBelajarMandarin</option>`;
+      }
+    }
+
+    async function fetchTemplateOptions() {
+      const { data, error } = await supabase.from("comment_templates").select("*");
+      const el = document.getElementById("selectTemplate");
+      if (!error && data && data.length > 0) {
+        templateList = data;
+        el.innerHTML = "";
+        data.forEach(t => {
+          el.innerHTML += `<option value="${t.id}">${t.title}</option>`;
+        });
+      } else {
+        el.innerHTML = `<option value="default">Jemputan Kelas Mandarin</option>`;
+      }
+    }
+
+    function generateCurrentTextFormula() {
+      const staffPhone = (currentLoggedInStaff?.phone_number || "601161220411").replace(/\D/g, "");
+      const pretextQuery = document.getElementById("selectPretext").value || "TRP1710-NakBelajarMandarin";
+      const waLink = `wa.me/${staffPhone}?text=${pretextQuery}`;
+
+      const selectedTplId = document.getElementById("selectTemplate").value;
+      const tpl = templateList.find(t => String(t.id) === String(selectedTplId));
+      const baseText = tpl ? tpl.template_text : "Hiii thank you hadir! Jom join our fully sponsored online mandarin class, siap nota n sijil bagus utk career tau!";
+
+      return `${baseText} ${waLink}`;
+    }
+
+    window.refreshAllDrafts = function() {
+      const newText = generateCurrentTextFormula();
+      rawPosts.forEach(item => {
+        const txtArea = document.getElementById(`reply-${item.id}`);
+        if (txtArea) txtArea.value = newText;
+      });
+    };
+
+    function formatDate(rawDate) {
+      if (!rawDate) return "";
+      try {
+        const d = new Date(rawDate);
+        if (isNaN(d.getTime())) return "";
+        return d.toLocaleDateString("ms-MY", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+      } catch (e) {
+        return "";
+      }
+    }
+
+    async function loadComments() {
+      const listDiv = document.getElementById("list");
+      listDiv.innerHTML = "Memuatkan senarai komen...";
+
+      const { data, error } = await supabase
+        .from("threads_replies_log")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        listDiv.innerHTML = `<p style="color:red;">Ralat ambil data: ${error.message}</p>`;
+        return;
+      }
+
+      const repliedIds = new Set(
+        data
+          .filter(r => r.user_handle === "sirhadi._" && r.parent_comment_id)
+          .map(r => r.parent_comment_id)
+      );
+
+      rawPosts = data.filter(item => {
+        if (item.user_handle === "sirhadi._") return false;
+        if (repliedIds.has(item.comment_id)) return false;
+        if (item.is_sent === true) return false;
+        return true;
+      });
+
+      if (rawPosts.length === 0) {
+        listDiv.innerHTML = "<p style='color:#64748b; text-align:center;'>Semua komen telah selesai dibalas!</p>";
+        return;
+      }
+
+      // Ambil tarikh posting induk
+      const rootIds = [...new Set(rawPosts.map(p => String(p.root_post_id || p.post_id || "")).filter(Boolean))];
+      
+      if (rootIds.length > 0) {
+        const { data: postsData } = await supabase
+          .from("threads_posts")
+          .select("id, created_at")
+          .in("id", rootIds);
+
+        if (postsData && postsData.length > 0) {
+          postsData.forEach(p => {
+            if (p.created_at) {
+              postsDateMap[String(p.id)] = formatDate(p.created_at);
+            }
+          });
+        }
+      }
+
+      const initialReply = generateCurrentTextFormula();
+      listDiv.innerHTML = "";
+
+      rawPosts.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.id = `card-${item.id}`;
+
+        const rootLink = item.root_post_url 
+          ? `<a href="${item.root_post_url}" target="_blank" class="btn-url">Posting Asal ↗</a>` 
+          : '';
+
+        const commentLink = item.post_url 
+          ? `<a href="${item.post_url}" target="_blank" class="btn-url">Lihat Komen ↗</a>` 
+          : '';
+
+        const commentTimeFormatted = formatDate(item.created_at);
+        const commentTimeBadge = commentTimeFormatted ? `<span class="comment-time">💬 ${commentTimeFormatted}</span>` : "";
+
+        const targetRootId = String(item.root_post_id || item.post_id || "").trim();
+        const postDateFormatted = postsDateMap[targetRootId] || "";
+        const postDateBadgeHtml = postDateFormatted 
+          ? `<span class="post-date-badge">📅 Dibuat: ${postDateFormatted}</span>` 
+          : `<span class="post-date-badge" style="color:#a16207; background:#fef9c3;">📅 Post ID: ${targetRootId}</span>`;
+
+        const postTextHtml = item.post_text 
+          ? `<div class="context-box">
+              <div class="context-header">
+                <span class="context-title">Posting Induk</span>
+                ${postDateBadgeHtml}
+              </div>
+              <div>"${item.post_text}"</div>
+            </div>` 
+          : '';
+
+        card.innerHTML = `
+          <div class="header-row">
+            <div class="user-info">
+              <span class="user">@${item.user_handle || 'user'}</span>
+              ${commentTimeBadge}
+            </div>
+            <div class="links-group">
+              ${commentLink}
+              ${rootLink}
+            </div>
+          </div>
+          ${postTextHtml}
+          <div class="label">Komen Pengguna</div>
+          <div class="comment-box">"${item.user_comment}"</div>
+          <div class="label">Balasan Disediakan</div>
+          <textarea id="reply-${item.id}">${initialReply}</textarea>
+          <div class="actions">
+            <span id="status-${item.id}" class="status-msg"></span>
+            <button id="btn-${item.id}" class="btn-send">Hantar Balasan</button>
+          </div>
+        `;
+        listDiv.appendChild(card);
+
+        document.getElementById(`btn-${item.id}`).onclick = () => {
+          if (isCooldownActive) return;
+          const finalReply = document.getElementById(`reply-${item.id}`).value;
+          sendReply(item, finalReply);
+        };
+      });
+
+      if (isCooldownActive) {
+        toggleAllSendButtons(true);
+      }
+    }
+
+    function toggleAllSendButtons(disabled) {
+      document.querySelectorAll(".btn-send").forEach(btn => {
+        btn.disabled = disabled;
+      });
+    }
+
+    function startCooldownTimer() {
+      isCooldownActive = true;
+      toggleAllSendButtons(true);
+
+      const banner = document.getElementById("cooldownBanner");
+      const timerSpan = document.getElementById("cooldownTimer");
+      banner.style.display = "block";
+
+      let remaining = SAFE_COOLDOWN_SECONDS;
+      timerSpan.innerText = remaining;
+
+      const countdownInterval = setInterval(() => {
+        remaining--;
+        timerSpan.innerText = remaining;
+
+        if (remaining <= 0) {
+          clearInterval(countdownInterval);
+          isCooldownActive = false;
+          toggleAllSendButtons(false);
+          banner.style.display = "none";
+        }
+      }, 1000);
+    }
+
+    async function sendReply(item, replyText) {
+      const btn = document.getElementById(`btn-${item.id}`);
+      const status = document.getElementById(`status-${item.id}`);
+      
+      toggleAllSendButtons(true);
+      btn.innerText = "Menghantar...";
+      status.style.color = "#64748b";
+      status.innerText = "Memproses balasan di Threads...";
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/reply-thread`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({
+            log_id: item.id,
+            comment_id: item.comment_id,
+            reply_text: replyText
+          })
+        });
+
+        const result = await res.json();
+
+        if (result.success || result.id) {
+          status.style.color = "green";
+          status.innerText = "Berjaya dihantar!";
+          
+          setTimeout(() => {
+            const card = document.getElementById(`card-${item.id}`);
+            if (card) card.remove();
+          }, 800);
+
+          startCooldownTimer();
+        } else {
+          status.style.color = "red";
+          status.innerText = "Gagal: " + (result.error || JSON.stringify(result));
+          btn.innerText = "Hantar Balasan";
+          toggleAllSendButtons(false);
+        }
+      } catch (err) {
+        status.style.color = "red";
+        status.innerText = "Ralat: " + err.message;
+        btn.innerText = "Hantar Balasan";
+        toggleAllSendButtons(false);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", initLogin);
+  </script>
+</body>
+</html>
