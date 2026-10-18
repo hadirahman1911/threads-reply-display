@@ -487,7 +487,7 @@
       status.innerText = "Memproses balasan di Threads...";
 
       try {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/reply-thread`, {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/threads-reply`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
